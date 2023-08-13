@@ -1,0 +1,4 @@
+8.8.8.8 = OK
+google.com = OK
+1.1.1.1 = OK
+wp.pl = OK
