@@ -81,7 +81,7 @@ for ip in ip_list:
     print(f"Connected to {ip}. Reading data...")
 
     net_connect.send_command('terminal length 0')
-    sh_ver_output = net_connect.end_command('show version')
+    sh_ver_output = net_connect.send_command('show version')
 
     output_lines = sh_ver_output.split('\n')
 
@@ -97,6 +97,12 @@ for ip in ip_list:
         if ' uptime is ' in line:
             hostname = line.split(' ')[0]
             uptime = line.split(' uptime is ')[1]
+            uptime = uptime.replace(',' ,'').replace("'" ,"")
+            uptime = uptime.strip()
+        if 'System uptime' in uptime_line:
+            uptime2 = uptime_line.split(': ')[1]
+            uptime2 = uptime2.replace(',' ,'').replace("'" ,"")
+            uptime2 = uptime2.strip() 
         if 'Cisco IOS Software' in line:
             version = line.split('Version ')[1].split(',')[0]
         if 'Processor board ID' in line:
