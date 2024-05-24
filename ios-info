@@ -1,31 +1,110 @@
-mport re
+from netmiko import ConnectHandler
+from netmiko.exceptions import NetMikoTimeoutException
+from netmiko.exceptions import SSHException
+from netmiko.exceptions import AuthenticationException
 
-# Pobieranie wyjścia komendy 'show version'
-sh_ver_output = net_connect.send_command('show version')
+import re
+import time
 
-def find_regex(regex, text, default='N/A'):
-    match = re.search(regex, text)
-    return match.group(1) if match else default
+#here is list of cisco routers ip addresses
+def read_ip_list(file_path):
+    with open(file_path, 'r') as file:
+        ip_list = [line.strip() for line in file if line.strip()]
+    return ip_list
 
-# Znajdowanie nazwy hosta (hostname)
-hostname = find_regex(r'(\S+)\suptime', sh_ver_output)
+ip_list = read_ip_list('ip_list.txt')
 
-# Znajdowanie czasu pracy (uptime)
-uptime = find_regex(r'\S+\suptime\sis\s(.+)', sh_ver_output).replace(',', '').replace("'", "").strip()
+#list where informations will be stored
+devices = []
 
-# Znajdowanie wersji oprogramowania (version)
-version = find_regex(r'Cisco\sIOS\sSoftware.+Version\s([^,]+)', sh_ver_output)
+#clearing the old data from the CSV file and writing the headers
+f = open("IOS.csv", "w+")
+f.write("IP Address;Hostname;Uptime;Current_Version;Current_Image;Serial_Number;Device_Model;Device_Memory")
+f.write("\n")
+f.close()
 
-# Znajdowanie numeru seryjnego (serial)
-serial = find_regex(r'Processor\sboard\sID\s(\S+)', sh_ver_output)
+#clearing the old data from the CSV file and writing the headers
+f = open("login_issues.csv", "w+")
+f.write("IP Address;Status")
+f.write("\n")
+f.close()
 
-# Znajdowanie obrazu systemu (ios image)
-ios = find_regex(r'System\simage\sfile\sis\s"([^ "]+)', sh_ver_output)
 
-# Znajdowanie modelu urządzenia (model)
-regex_model = re.compile(r'[Cc]isco\s(\S+).*memory.')
-model_match = regex_model.findall(sh_ver_output)
-model = model_match[0] if model_match else 'N/A'
 
-# Znajdowanie pamięci urządzenia (memory)
-memory = find_regex(r'with (.*?) bytes of memory', sh_ver_output)
+#loop all ip addresses in ip_list
+for ip in ip_list:
+    cisco = {
+    'device_type':'autodetect',
+    'ip':ip,
+    'username':'cisco',     #ssh username
+    'password':'cisco',  #ssh password
+    'ssh_strict':False,  
+    'fast_cli':False,
+    }
+    
+    #handling exceptions errors
+    
+    try:
+        net_connect = ConnectHandler(**cisco)
+    except NetMikoTimeoutException:
+        f = open("login_issues.csv", "a")
+        f.write(ip + ";" + "Device Unreachable/SSH not enabled")
+        f.write("\n")
+        f.close()
+        continue
+    except AuthenticationException:
+        f = open("login_issues.csv", "a")
+        f.write(ip + ";" + "Authentication Failure")
+        f.write("\n")
+        f.close()
+        continue
+    except SSHException:
+        f = open("login_issues.csv", "a")
+        f.write(ip + ";" + "SSH not enabled")
+        f.write("\n")
+        f.close()
+        continue
+
+    try:
+        net_connect.enable()
+
+    #handling exceptions errors        
+    except ValueError:
+        f = open("login_issues.csv", "a")
+        f.write(ip + ";" + "Could be SSH Enable Password issue")
+        f.write("\n")
+        f.close()
+        continue
+    
+    print(f"Connected to {ip}. Reading data...")
+
+    for line in output_lines:
+        if ' uptime is ' in line:
+            hostname = line.split(' ')[0]
+            uptime = line.split(' uptime is ')[1]
+        if 'Cisco IOS Software' in line:
+            version = line.split('Version ')[1].split(',')[0]
+        if 'Processor board ID' in line:
+            serial = line.split(' ')[-1]
+        if 'System image file is' in line:
+            ios = line.split('"')[1]
+        if line.lower().startswith('cisco') and 'memory' in line:
+            model = line.split(' ')[1]
+        if 'with' in line and 'bytes of memory' in line:
+            memory = line.split('with ')[1].split(' bytes')[0]
+    
+    
+    #append results to table [hostname,uptime,version,serial,ios,model]
+    devices.append([ip, hostname, uptime, version, ios, serial, model, memory])
+
+    print(f"Data read form {ip}. Disconnecting...")
+    net_connect.disconnect()
+    
+
+
+#print all results (for all routers) on screen    
+with open ("IOS.csv", "a") as f:
+    for device in devices:
+        f.write(";".join(device) + "\n")
+
+print(f"All connections closed and data saved")
