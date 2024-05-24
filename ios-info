@@ -80,6 +80,19 @@ for ip in ip_list:
     
     print(f"Connected to {ip}. Reading data...")
 
+    net_connect.send_command('terminal length 0')
+    sh_ver_output = net_connect.send_packet('show version')
+
+    output_lines = sh_ver_output.split('\n')
+
+    hostname = None
+    uptime = None
+    version = None
+    serial = None
+    ios = None
+    model = None
+    memory = None
+
     for line in output_lines:
         if ' uptime is ' in line:
             hostname = line.split(' ')[0]
