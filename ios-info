@@ -1,65 +1,7 @@
-from netmiko import ConnectHandler
-from netmiko.ssh_exception import NetMikoTimeoutException, SSHException, AuthenticationException
-import re
-
-# List of Cisco router IP addresses
-ip_list = ['192.168.1.50', '192.168.1.51', '192.168.1.52', '192.168.1.60']
-
-# List to store information
-devices = []
-
-# Header for CSV file
-header = "IP Address, Hostname, Uptime, Current Version, Current Image, Serial Number, Device Model, Device Memory\n"
-
-# Writing headers to files
-try:
-    with open("IOS.csv", "w+") as f:
-        f.write(header)
-    with open("login_issues.csv", "w+") as f:
-        f.write("IP Address, Status\n")
-except IOError as e:
-    print(f"Error writing to file: {e}")
-
-# Loop through all IP addresses in the ip_list
-for ip in ip_list:
-    cisco = {
-        'device_type': 'cisco_ios',
-        'ip': ip,
-        'username': 'cisco',
-        'password': 'cisco',
-        'secret': 'cisco',
-        'ssh_strict': False,
-        'fast_cli': False,
-    }
-
-    try:
-        net_connect = ConnectHandler(**cisco)
-        net_connect.enable()
-    except (NetMikoTimeoutException, AuthenticationException, SSHException, ValueError) as e:
-        status = str(e).split(':')[0]  # Simplified error message
-        with open("login_issues.csv", "a") as f:
-            f.write(f"{ip},{status}\n")
-        continue
-
-    # Execute 'show version' command
-    sh_ver_output = net_connect.send_command('show version')
-    print(f"Result for {ip}:\n{sh_ver_output}\n")  # Debug: print the output
-
-    # Regular expression pattern to extract details from each device in the stack
-    regex_full = re.compile(r'(\S+)\suptime\sis\s(.+?),\s+Cisco\sIOS\sSoftware.+Version\s([^,]+),.*?Processor\sboard\sID\s(\S+).*?System image file is "([^"]+)".*?[Cc]isco\s(\S+).*with\s(\d+)\sbytes\sof\smemory', re.DOTALL)
-    matches = regex_full.findall(sh_ver_output)
-    if matches:
-        for match in matches:
-            devices.append([ip] + list(match))
-    else:
-        print(f"No matches found for {ip}. Check the regex pattern and output format.")
-
-# Write all results to CSV file
-try:
-    with open("IOS.csv", "a") as f:
-        for device in devices:
-            line = ", ".join(device) + "\n"
-            f.write(line)
-            print(f"Write to file: {line}")  # Debug: print the written line
-except IOError as e:
-    print(f"Error writing to file: {e}")
+regex_hostname = re.compile(r'(\S+\d+)\s\S+\suptime')
+regex_uptime = re.compile(r'\S+\suptime\sis\s(.+)')
+regex_version = re.compile(r'Cisco\sIOS\sSoftware.+Version\s([^,]+)')
+regex_serial = re.compile(r'System\sSerial\sNumber\s+:\s+(\S+)')
+regex_ios = re.compile(r'System\simage\sfile\sis\s"([^ "]+)')
+regex_model = re.compile(r'Model\sNumber\s+:\s+(\S+)')
+regex_memory = re.search(r'\(.*\)\s(.*)\sbytes\sof\smemory', sh_ver_output)
