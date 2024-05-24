@@ -5,17 +5,22 @@ import re
 # List of Cisco router IP addresses
 ip_list = ['192.168.1.50', '192.168.1.51', '192.168.1.52', '192.168.1.60']
 
-# List where information will be stored
+# List to store information
 devices = []
 
-# Clearing the old data from the CSV file and writing the headers
-with open("IOS.csv", "w+") as f:
-    f.write("IP Address, Hostname, Uptime, Current_Version, Current_Image, Serial_Number, Device_Model, Device_Memory\n")
+# Header for CSV file
+header = "IP Address, Hostname, Uptime, Current Version, Current Image, Serial Number, Device Model, Device Memory\n"
 
-with open("login_issues.csv", "w+") as f:
-    f.write("IP Address, Status\n")
+# Writing headers to files
+try:
+    with open("IOS.csv", "w+") as f:
+        f.write(header)
+    with open("login_issues.csv", "w+") as f:
+        f.write("IP Address, Status\n")
+except IOError as e:
+    print(f"Error writing to file: {e}")
 
-# Loop over all IP addresses in ip_list
+# Loop through all IP addresses in the ip_list
 for ip in ip_list:
     cisco = {
         'device_type': 'cisco_ios',
@@ -26,42 +31,35 @@ for ip in ip_list:
         'ssh_strict': False,
         'fast_cli': False,
     }
-    
+
     try:
         net_connect = ConnectHandler(**cisco)
         net_connect.enable()
-    except NetMikoTimeoutException:
+    except (NetMikoTimeoutException, AuthenticationException, SSHException, ValueError) as e:
+        status = str(e).split(':')[0]  # Simplified error message
         with open("login_issues.csv", "a") as f:
-            f.write(f"{ip},Device Unreachable/SSH not enabled\n")
-        continue
-    except AuthenticationException:
-        with open("login_issues.csv", "a") as f:
-            f.write(f"{ip},Authentication Failure\n")
-        continue
-    except SSHException:
-        with open("login_issues.csv", "a") as f:
-            f.write(f"{ip},SSH not enabled\n")
-        continue
-    except ValueError:
-        with open("login_issues.csv", "a") as f:
-            f.write(f"{ip},Could be SSH Enable Password issue\n")
+            f.write(f"{ip},{status}\n")
         continue
 
     # Execute 'show version' command
     sh_ver_output = net_connect.send_command('show version')
+    print(f"Result for {ip}:\n{sh_ver_output}\n")  # Debug: print the output
 
-    # Regex to find details from each device in the stack
+    # Regular expression pattern to extract details from each device in the stack
     regex_full = re.compile(r'(\S+)\suptime\sis\s(.+?),\s+Cisco\sIOS\sSoftware.+Version\s([^,]+),.*?Processor\sboard\sID\s(\S+).*?System image file is "([^"]+)".*?[Cc]isco\s(\S+).*with\s(\d+)\sbytes\sof\smemory', re.DOTALL)
-
-    # Find all devices in the stack
     matches = regex_full.findall(sh_ver_output)
+    if matches:
+        for match in matches:
+            devices.append([ip] + list(match))
+    else:
+        print(f"No matches found for {ip}. Check the regex pattern and output format.")
 
-    # Append each found device to the list
-    for match in matches:
-        hostname, uptime, version, serial, ios_image, model, memory = match
-        devices.append([ip, hostname, uptime, version, ios_image, serial, model, memory])
-
-# Write all results to CSV
-with open("IOS.csv", "a") as f:
-    for device in devices:
-        f.write(", ".join(device) + "\n")
+# Write all results to CSV file
+try:
+    with open("IOS.csv", "a") as f:
+        for device in devices:
+            line = ", ".join(device) + "\n"
+            f.write(line)
+            print(f"Write to file: {line}")  # Debug: print the written line
+except IOError as e:
+    print(f"Error writing to file: {e}")
