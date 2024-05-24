@@ -1,0 +1,67 @@
+from netmiko import ConnectHandler
+from netmiko.ssh_exception import NetMikoTimeoutException, SSHException, AuthenticationException
+import re
+
+# List of Cisco router IP addresses
+ip_list = ['192.168.1.50', '192.168.1.51', '192.168.1.52', '192.168.1.60']
+
+# List where information will be stored
+devices = []
+
+# Clearing the old data from the CSV file and writing the headers
+with open("IOS.csv", "w+") as f:
+    f.write("IP Address, Hostname, Uptime, Current_Version, Current_Image, Serial_Number, Device_Model, Device_Memory\n")
+
+with open("login_issues.csv", "w+") as f:
+    f.write("IP Address, Status\n")
+
+# Loop over all IP addresses in ip_list
+for ip in ip_list:
+    cisco = {
+        'device_type': 'cisco_ios',
+        'ip': ip,
+        'username': 'cisco',
+        'password': 'cisco',
+        'secret': 'cisco',
+        'ssh_strict': False,
+        'fast_cli': False,
+    }
+    
+    try:
+        net_connect = ConnectHandler(**cisco)
+        net_connect.enable()
+    except NetMikoTimeoutException:
+        with open("login_issues.csv", "a") as f:
+            f.write(f"{ip},Device Unreachable/SSH not enabled\n")
+        continue
+    except AuthenticationException:
+        with open("login_issues.csv", "a") as f:
+            f.write(f"{ip},Authentication Failure\n")
+        continue
+    except SSHException:
+        with open("login_issues.csv", "a") as f:
+            f.write(f"{ip},SSH not enabled\n")
+        continue
+    except ValueError:
+        with open("login_issues.csv", "a") as f:
+            f.write(f"{ip},Could be SSH Enable Password issue\n")
+        continue
+
+    # Execute 'show version' command
+    sh_ver_output = net_connect.send_command('show version')
+
+    # Regex to find details from each device in the stack
+    regex_full = re.compile(r'(\S+)\suptime\sis\s(.+?),\s+Cisco\sIOS\sSoftware.+Version\s([^,]+),.*?Processor\sboard\sID\s(\S+).*?System image file is "([^"]+)".*?[Cc]isco\s(\S+).*with\s(\d+)\sbytes\sof\smemory', re.DOTALL)
+
+    # Find all devices in the stack
+    matches = regex_full.findall(sh_ver_output)
+
+    # Append each found device to the list
+    for match in matches:
+        hostname, uptime, version, serial, ios_image, model, memory = match
+        devices.append([ip, hostname, uptime, version, ios_image, serial, model, memory])
+
+# Write all results to CSV
+with open("IOS.csv", "a") as f:
+    for device in devices:
+        f.write(", ".join(device) + "\n")
