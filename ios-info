@@ -93,33 +93,40 @@ for ip in ip_list:
     model = None
     memory = None
 
-    for line in output_lines:
-        if ' uptime is ' in line:
-            hostname = line.split(' ')[0]
-            uptime = line.split(' uptime is ')[1]
-        if 'Switch uptime ' in line:
-            uptime2 = line.split('Switch uptime ')[1]
-        if 'Cisco IOS Software' in line:
-            version = line.split('Version ')[1].split(',')[0]
-        if 'Processor board ID' in line:
-            serial = line.split(' ')[-1]
-        if 'System image file is' in line:
-            ios = line.split('"')[1]
-        if line.lower().startswith('cisco') and 'memory' in line:
-            model = line.split(' ')[1]
-        if 'with' in line and 'bytes of memory' in line:
-            memory = line.split('with ')[1].split(' bytes')[0]
-    
-max_length = max(len(hostnames), len(uptimes), len(versions), len(serials), len(ioses), len(models), len(memories))
+for line in output_lines:
+    if ' uptime is ' in line:
+        hostname = line.split(' ')[0]
+        uptime = line.split(' uptime is ')[1]
+        hostnames.append(hostname)
+        uptimes.append(uptime)
+    if 'Switch uptime :' in line:
+        uptime2 = line.split('Switch uptime :')[1]
+        uptimes.append(uptime2)  # Dodanie czasu działania switcha w stacku
+    if 'Cisco IOS Software' in line and 'Version' in line:
+        version = line.split('Version ')[1].split(',')[0]
+        versions.append(version)
+    if 'Processor board ID' in line:
+        serial = line.split(' ')[-1]
+        serials.append(serial)
+    if 'System image file is' in line:
+        ios = line.split('"')[1]
+        ioses.append(ios)
+    if line.lower().startswith('cisco') and 'memory' in line:
+        model = line.split(' ')[1]
+        memory = line.split('with ')[1].split(' bytes')[0]
+        models.append(model)
+        memories.append(memory)
 
-# Uzupełnienie list o brakujące wartości "N/A"
-    hostnames += ['N/A'] * (max_length - len(hostnames))
-    uptimes += ['N/A'] * (max_length - len(uptimes))
-    versions += ['N/A'] * (max_length - len(versions))
-    serials += ['N/A'] * (max_length - len(serials))
-    ioses += ['N/A'] * (max_length - len(ioses))
-    models += ['N/A'] * (max_length - len(models))
-    memories += ['N/A'] * (max_length - len(memories))
+# Przechowywanie wyników
+for i in range(max(len(hostnames), len(uptimes))):
+    hostname = hostnames[i] if i < len(hostnames) else 'N/A'
+    uptime = uptimes[i] if i < len(uptimes) else 'N/A'
+    version = versions[i] if i < len(versions) else 'N/A'
+    serial = serials[i] if i < len(serials) else 'N/A'
+    ios = ioses[i] if i < len(ioses) else 'N/A'
+    model = models[i] if i < len(models) else 'N/A'
+    memory = memories[i] if i < len(memories) else 'N/A'
+    devices.append([ip, hostname, uptime, version, ios, serial, model, memory])
     
     #append results to table [hostname,uptime,version,serial,ios,model]
     devices.append([ip, hostname, uptime+uptime2, version, ios, serial, model, memory])
