@@ -97,6 +97,8 @@ for ip in ip_list:
         if ' uptime is ' in line:
             hostname = line.split(' ')[0]
             uptime = line.split(' uptime is ')[1]
+        if 'Switch uptime ' in line:
+            uptime2 = line.split('Switch uptime ')[1]
         if 'Cisco IOS Software' in line:
             version = line.split('Version ')[1].split(',')[0]
         if 'Processor board ID' in line:
@@ -108,9 +110,19 @@ for ip in ip_list:
         if 'with' in line and 'bytes of memory' in line:
             memory = line.split('with ')[1].split(' bytes')[0]
     
+max_length = max(len(hostnames), len(uptimes), len(versions), len(serials), len(ioses), len(models), len(memories))
+
+# Uzupełnienie list o brakujące wartości "N/A"
+    hostnames += ['N/A'] * (max_length - len(hostnames))
+    uptimes += ['N/A'] * (max_length - len(uptimes))
+    versions += ['N/A'] * (max_length - len(versions))
+    serials += ['N/A'] * (max_length - len(serials))
+    ioses += ['N/A'] * (max_length - len(ioses))
+    models += ['N/A'] * (max_length - len(models))
+    memories += ['N/A'] * (max_length - len(memories))
     
     #append results to table [hostname,uptime,version,serial,ios,model]
-    devices.append([ip, hostname, uptime, version, ios, serial, model, memory])
+    devices.append([ip, hostname, uptime+uptime2, version, ios, serial, model, memory])
 
     print(f"Data read form {ip}. Disconnecting...")
     net_connect.disconnect()
