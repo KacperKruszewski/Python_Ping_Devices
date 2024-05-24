@@ -81,7 +81,7 @@ for ip in ip_list:
     print(f"Connected to {ip}. Reading data...")
 
     net_connect.send_command('terminal length 0')
-    sh_ver_output = net_connect.send_packet('show version')
+    sh_ver_output = net_connect.end_command('show version')
 
     output_lines = sh_ver_output.split('\n')
 
