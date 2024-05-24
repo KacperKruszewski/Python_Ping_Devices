@@ -101,7 +101,7 @@ for line in output_lines:
         uptimes.append(uptime)
     if 'Switch uptime :' in line:
         uptime2 = line.split('Switch uptime :')[1]
-        uptimes.append(uptime2)  # Dodanie czasu działania switcha w stacku
+        uptimes.append(uptime2.strip() + '\n')  # Dodanie czasu działania switcha w stacku
     if 'Cisco IOS Software' in line and 'Version' in line:
         version = line.split('Version ')[1].split(',')[0]
         versions.append(version)
