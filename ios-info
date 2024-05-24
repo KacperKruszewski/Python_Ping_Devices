@@ -1,7 +1,31 @@
-regex_hostname = re.compile(r'(\S+\d+)\s\S+\suptime')
-regex_uptime = re.compile(r'\S+\suptime\sis\s(.+)')
-regex_version = re.compile(r'Cisco\sIOS\sSoftware.+Version\s([^,]+)')
-regex_serial = re.compile(r'System\sSerial\sNumber\s+:\s+(\S+)')
-regex_ios = re.compile(r'System\simage\sfile\sis\s"([^ "]+)')
-regex_model = re.compile(r'Model\sNumber\s+:\s+(\S+)')
-regex_memory = re.search(r'\(.*\)\s(.*)\sbytes\sof\smemory', sh_ver_output)
+mport re
+
+# Pobieranie wyjścia komendy 'show version'
+sh_ver_output = net_connect.send_command('show version')
+
+def find_regex(regex, text, default='N/A'):
+    match = re.search(regex, text)
+    return match.group(1) if match else default
+
+# Znajdowanie nazwy hosta (hostname)
+hostname = find_regex(r'(\S+)\suptime', sh_ver_output)
+
+# Znajdowanie czasu pracy (uptime)
+uptime = find_regex(r'\S+\suptime\sis\s(.+)', sh_ver_output).replace(',', '').replace("'", "").strip()
+
+# Znajdowanie wersji oprogramowania (version)
+version = find_regex(r'Cisco\sIOS\sSoftware.+Version\s([^,]+)', sh_ver_output)
+
+# Znajdowanie numeru seryjnego (serial)
+serial = find_regex(r'Processor\sboard\sID\s(\S+)', sh_ver_output)
+
+# Znajdowanie obrazu systemu (ios image)
+ios = find_regex(r'System\simage\sfile\sis\s"([^ "]+)', sh_ver_output)
+
+# Znajdowanie modelu urządzenia (model)
+regex_model = re.compile(r'[Cc]isco\s(\S+).*memory.')
+model_match = regex_model.findall(sh_ver_output)
+model = model_match[0] if model_match else 'N/A'
+
+# Znajdowanie pamięci urządzenia (memory)
+memory = find_regex(r'with (.*?) bytes of memory', sh_ver_output)
