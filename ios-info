@@ -100,9 +100,9 @@ for ip in ip_list:
             uptime = uptime.replace(',' ,'').replace("'" ,"")
             uptime = uptime.strip()
         if 'System uptime' in uptime_line:
-            uptime2 = uptime_line.split(': ')[1]
-            uptime2 = uptime2.replace(',' ,'').replace("'" ,"")
-            uptime2 = uptime2.strip() 
+            uptime = uptime_line.split(': ')[1]
+            uptime = uptime2.replace(',' ,'').replace("'" ,"")
+            uptime = uptime2.strip() 
         if 'Cisco IOS Software' in line:
             version = line.split('Version ')[1].split(',')[0]
         if 'Processor board ID' in line:
@@ -114,6 +114,12 @@ for ip in ip_list:
         if 'with' in line and 'bytes of memory' in line:
             memory = line.split('with ')[1].split(' bytes')[0]
     
+    if uptime1 and uptime2:
+    combined_uptime = f"{uptime1} / {uptime2}"
+    elif uptime1:
+    combined_uptime = uptime1
+    else:
+    combined_uptime = uptime2
     
     #append results to table [hostname,uptime,version,serial,ios,model]
     devices.append([ip, hostname, uptime, version, ios, serial, model, memory])
